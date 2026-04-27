@@ -8,30 +8,23 @@ class Tokenizer:
         
         with open(file) as stream:
             chars = stream.read()
-            comment = False
-            token = ""
             i = 0
             
             while i < len(chars):
-                if chars[i] in [" ", "\n"]: # Handle space & newline chars
+                if chars[i].isspace(): # Handle space, tab & newline
                     i += 1
                     continue
                     
                 elif chars[i] == "/": # Handle comments (// \n)
                     if chars[i+1] == "/":
-                        comment = True
-                        while comment:
-                            if chars[i] == "\n":
-                                comment = False
+                        while chars[i] != "\n":
                             i += 1
                         continue   
                     elif chars[i+1] == "*": # Handle comments (/* */, /** */)
-                        comment = True
-                        while comment:
-                            if chars[i] == "*" and chars[i+1] == "/":
-                                comment = False
+                        i += 2
+                        while not (chars[i] == "*" and chars[i+1] == "/"):
                             i += 1
-                        i += 1
+                        i += 2
                         continue
                     else:
                         self.tokens.append(chars[i])
@@ -39,45 +32,40 @@ class Tokenizer:
                         continue
                         
                 elif chars[i] == "\"": # Handle string literals
+                    token = ""
                     i += 1
                     while chars[i] != "\"":
                         token += chars[i]
                         i += 1
                     self.tokens.append(token)
-                    token = ""
                     i += 1
                     continue
                     
                 elif chars[i].isdecimal(): # Handle integer constants
-                    token += chars[i]
+                    token = chars[i]
                     i += 1
                     while chars[i].isdecimal():
                         token += chars[i]
                         i += 1
                     self.tokens.append(token)
-                    token = ""
                     continue
                 
                 elif chars[i].isalpha() or chars[i] == "_": # Handle keywords & identifiers
-                    token += chars[i]
+                    token = chars[i]
                     i += 1
                     while chars[i].isalnum() or chars[i] == "_":
                         token += chars[i]
                         i += 1
-                    self.tokens.append(token)
-                    token = ""
+                    self.tokens.append(token) 
                     continue
                     
                 elif not chars[i].isalnum(): # Handle symbols
                     self.tokens.append(chars[i])
                     i += 1
                     continue
-
-                i += 1
             
             print(self.tokens)
                     
-    
     def more_tokens(self):
         return self.cursor < len(self.tokens)
         
