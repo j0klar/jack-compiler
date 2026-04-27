@@ -2,8 +2,8 @@ class Tokenizer:
     """Tokenizes a single .jack-file into a stream of tokens."""
 
     def __init__(self, file):
-        self.token_count = 0
-        self.token = ""
+        self.cursor = 0
+        self.token = None
         self.tokens = []
         
         with open(file) as stream:
@@ -13,11 +13,11 @@ class Tokenizer:
             i = 0
             
             while i < len(chars):
-                if chars[i] in [" ", "\n"]:
+                if chars[i] in [" ", "\n"]: # Handle space & newline chars
                     i += 1
                     continue
-                
-                elif chars[i] == "/":
+                    
+                elif chars[i] == "/": # Handle comments (// \n)
                     if chars[i+1] == "/":
                         comment = True
                         while comment:
@@ -25,7 +25,7 @@ class Tokenizer:
                                 comment = False
                             i += 1
                         continue   
-                    elif chars[i+1] == "*":
+                    elif chars[i+1] == "*": # Handle comments (/* */, /** */)
                         comment = True
                         while comment:
                             if chars[i] == "*" and chars[i+1] == "/":
@@ -33,8 +33,12 @@ class Tokenizer:
                             i += 1
                         i += 1
                         continue
+                    else:
+                        self.tokens.append(chars[i])
+                        i += 1
+                        continue
                         
-                elif chars[i] == "\"":
+                elif chars[i] == "\"": # Handle string literals
                     i += 1
                     while chars[i] != "\"":
                         token += chars[i]
@@ -44,7 +48,7 @@ class Tokenizer:
                     i += 1
                     continue
                     
-                elif chars[i].isdecimal():
+                elif chars[i].isdecimal(): # Handle integer constants
                     token += chars[i]
                     i += 1
                     while chars[i].isdecimal():
@@ -52,10 +56,19 @@ class Tokenizer:
                         i += 1
                     self.tokens.append(token)
                     token = ""
+                    continue
+                
+                elif chars[i].isalpha() or chars[i] == "_": # Handle keywords & identifiers
+                    token += chars[i]
                     i += 1
+                    while chars[i].isalnum() or chars[i] == "_":
+                        token += chars[i]
+                        i += 1
+                    self.tokens.append(token)
+                    token = ""
                     continue
                     
-                elif not chars[i].isalnum():
+                elif not chars[i].isalnum(): # Handle symbols
                     self.tokens.append(chars[i])
                     i += 1
                     continue
@@ -66,11 +79,11 @@ class Tokenizer:
                     
     
     def more_tokens(self):
-        return self.token_count < len(self.tokens)
+        return self.cursor < len(self.tokens)
         
     def advance(self):
-        self.token = self.tokens[self.token_count]
-        self.token_count += 1
+        self.token = self.tokens[self.cursor]
+        self.cursor += 1
         
     def token_type(self):
         pass
