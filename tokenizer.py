@@ -13,7 +13,11 @@ class Tokenizer:
             i = 0
             
             while i < len(chars):
-                if chars[i] == "/":
+                if chars[i] in [" ", "\n"]:
+                    i += 1
+                    continue
+                
+                elif chars[i] == "/":
                     if chars[i+1] == "/":
                         comment = True
                         while comment:
@@ -36,11 +40,26 @@ class Tokenizer:
                         token += chars[i]
                         i += 1
                     self.tokens.append(token)
+                    token = ""
                     i += 1
                     continue
-            
-                if chars[i] != " " and chars[i] != "\n":
-                    print(chars[i])
+                    
+                elif chars[i].isdecimal():
+                    token += chars[i]
+                    i += 1
+                    while chars[i].isdecimal():
+                        token += chars[i]
+                        i += 1
+                    self.tokens.append(token)
+                    token = ""
+                    i += 1
+                    continue
+                    
+                elif not chars[i].isalnum():
+                    self.tokens.append(chars[i])
+                    i += 1
+                    continue
+
                 i += 1
             
             print(self.tokens)
