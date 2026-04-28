@@ -1,3 +1,7 @@
+KEYWORDS = frozenset({"class", "constructor", "function", "method", "field", "static", "var", "int", "char", "boolean", "void", "true", "false", "null", "this", "let", "do", "if", "else", "while", "return"})
+
+SYMBOLS = frozenset("{}()[].,;+-*/&|<>=~")
+
 class Tokenizer:
     """Tokenizes a single .jack-file into a stream of tokens."""
 
@@ -32,7 +36,7 @@ class Tokenizer:
                         continue
                         
                 elif chars[i] == "\"": # Handle string literals
-                    token = ""
+                    token = chars[i]
                     i += 1
                     while chars[i] != "\"":
                         token += chars[i]
@@ -56,13 +60,16 @@ class Tokenizer:
                     while chars[i].isalnum() or chars[i] == "_":
                         token += chars[i]
                         i += 1
-                    self.tokens.append(token) 
+                    self.tokens.append(token)
                     continue
                     
-                elif not chars[i].isalnum(): # Handle symbols
+                elif chars[i] in SYMBOLS: # Handle symbols
                     self.tokens.append(chars[i])
                     i += 1
                     continue
+                    
+                else:
+                    print(char[i] + " is not a valid character!")
             
             print(self.tokens)
                     
@@ -74,19 +81,23 @@ class Tokenizer:
         self.cursor += 1
         
     def token_type(self):
-        pass
+        if self.token in KEYWORDS: return "KEYWORD"
+        elif self.token in SYMBOLS: return "SYMBOL"
+        elif self.token[0] == "\"": return "STRING_CONST"
+        elif self.token.isdecimal(): return "INT_CONST"
+        elif self.token.isalnum() or "_" in self.token: return "IDENTIFIER"
         
     def keyword(self):
-        pass
+        return self.token
         
     def symbol(self):
-        pass
+        return self.token
         
     def identifier(self):
-        pass
+        return self.token
         
     def int_val(self):
-        pass
+        return int(self.token)
         
     def string_val(self):
-        pass
+        return self.token[1:-1]
