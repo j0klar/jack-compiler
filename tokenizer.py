@@ -41,7 +41,7 @@ class Tokenizer:
                     while chars[i] != "\"":
                         token += chars[i]
                         i += 1
-                    self.tokens.append(token)
+                    self.tokens.append(token + "\"")
                     i += 1
                     continue
                     
@@ -70,8 +70,6 @@ class Tokenizer:
                     
                 else:
                     print(char[i] + " is not a valid character!")
-            
-            print(self.tokens)
                     
     def more_tokens(self):
         return self.cursor < len(self.tokens)
@@ -87,17 +85,11 @@ class Tokenizer:
         elif self.token.isdecimal(): return "INT_CONST"
         elif self.token.isalnum() or "_" in self.token: return "IDENTIFIER"
         
-    def keyword(self):
-        return self.token
-        
-    def symbol(self):
-        return self.token
-        
-    def identifier(self):
+    def get_token(self):
         return self.token
         
     def int_val(self):
         return int(self.token)
         
-    def string_val(self):
+    def str_val(self):
         return self.token[1:-1]
