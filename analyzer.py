@@ -9,18 +9,18 @@ def main():
        
     if os.path.isfile(path_in) and path_in[-5:] == ".jack":
         tokenizer = Tokenizer(path_in)
-        file_out = open(path_in[:-5]+"F.xml", "w")
-        __tokenize_file(tokenizer, file_out)
+        with open(path_in[:-5]+"F.xml", "w") as file_out:
+            _tokenize_file(tokenizer, file_out)
         
     elif os.path.isdir(path_in):
         dir_in = os.listdir(path_in)
         for file in dir_in:
             if file[-5:] == ".jack":
                 tokenizer = Tokenizer(os.path.join(path_in, file))
-                file_out = open(os.path.join(path_in, file[:-5]+"F.xml"), "w")
-                __tokenize_file(tokenizer, file_out)
+                with open(os.path.join(path_in, file[:-5]+"F.xml"), "w") as file_out:
+                    _tokenize_file(tokenizer, file_out)
 
-def __tokenize_file(tokenizer, file):
+def _tokenize_file(tokenizer, file):
     file.write("<tokens>\n")
     while tokenizer.more_tokens():
         tokenizer.advance()
@@ -28,7 +28,7 @@ def __tokenize_file(tokenizer, file):
             file.write("<keyword> " + tokenizer.get_token() + " </keyword>\n")
         elif tokenizer.token_type() == "SYMBOL":
             token = tokenizer.get_token()
-            match(token):
+            match token:
                 case "<": token = "&lt;"
                 case ">": token = "&gt;"
                 case "&": token = "&amp;"

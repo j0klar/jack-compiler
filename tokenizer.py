@@ -69,7 +69,7 @@ class Tokenizer:
                     continue
                     
                 else:
-                    print(char[i] + " is not a valid character!")
+                    print(chars[i] + " is not a valid character!")
                     
     def more_tokens(self):
         return self.cursor < len(self.tokens)
@@ -83,7 +83,7 @@ class Tokenizer:
         elif self.token in SYMBOLS: return "SYMBOL"
         elif self.token[0] == "\"": return "STRING_CONST"
         elif self.token.isdecimal(): return "INT_CONST"
-        elif self.token.isalnum() or "_" in self.token: return "IDENTIFIER"
+        else: return "IDENTIFIER"
         
     def get_token(self):
         return self.token
