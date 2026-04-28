@@ -3,7 +3,7 @@ KEYWORDS = frozenset({"class", "constructor", "function", "method", "field", "st
 SYMBOLS = frozenset("{}()[].,;+-*/&|<>=~")
 
 class Tokenizer:
-    """Tokenizes a single .jack-file into a stream of tokens."""
+    """Tokenizes a single .jack-file into a stream of categorized tokens."""
 
     def __init__(self, file):
         self.cursor = 0

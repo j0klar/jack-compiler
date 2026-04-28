@@ -1,21 +1,24 @@
+"""Performs syntax analysis for one or more .jack-files and outputs one .xml-file each."""
+
 from tokenizer import Tokenizer
 from comp_engine import Comp_Engine
 import sys, os
     
 def main():
     path_in = sys.argv[1]
-    file = open(path_in[:-5]+"F.xml", "w")
-    
+       
     if os.path.isfile(path_in) and path_in[-5:] == ".jack":
         tokenizer = Tokenizer(path_in)
-        __tokenize_file(tokenizer, file)
+        file_out = open(path_in[:-5]+"F.xml", "w")
+        __tokenize_file(tokenizer, file_out)
         
     elif os.path.isdir(path_in):
         dir_in = os.listdir(path_in)
         for file in dir_in:
             if file[-5:] == ".jack":
                 tokenizer = Tokenizer(os.path.join(path_in, file))
-                __tokenize_file(tokenizer, file)
+                file_out = open(os.path.join(path_in, file[:-5]+"F.xml"), "w")
+                __tokenize_file(tokenizer, file_out)
 
 def __tokenize_file(tokenizer, file):
     file.write("<tokens>\n")
