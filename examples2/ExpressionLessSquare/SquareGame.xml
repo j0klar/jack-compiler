@@ -1,15 +1,13 @@
 <class>
   <keyword> class </keyword>
-  <symbol> class </symbol>
   <identifier> SquareGame </identifier>
   <symbol> { </symbol>
   <classVarDec>
-  <keyword> field </keyword>
-  <symbol> field </symbol>
-  <identifier> Square </identifier>
-  <identifier> square </identifier>
-  <symbol> ; </symbol>
+    <keyword> field </keyword>
+    <identifier> Square </identifier>
+    <identifier> square </identifier>
+    <symbol> ; </symbol>
   </classVarDec>
   <subroutineDec>
-  </subroutineDec>
+            </subroutineDec>
 </class>

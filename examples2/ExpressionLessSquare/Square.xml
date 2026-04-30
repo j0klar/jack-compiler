@@ -1,18 +1,15 @@
 <class>
   <keyword> class </keyword>
-  <symbol> class </symbol>
   <identifier> Square </identifier>
   <symbol> { </symbol>
   <classVarDec>
-  <keyword> field </keyword>
-  <symbol> field </symbol>
-  <keyword> int </keyword>
-  <symbol> int </symbol>
-  <identifier> x </identifier>
-  <symbol> , </symbol>
-  <identifier> y </identifier>
-  <symbol> ; </symbol>
+    <keyword> field </keyword>
+    <keyword> int </keyword>
+    <identifier> x </identifier>
+    <symbol> , </symbol>
+    <identifier> y </identifier>
+    <symbol> ; </symbol>
   </classVarDec>
   <subroutineDec>
-  </subroutineDec>
+            </subroutineDec>
 </class>
