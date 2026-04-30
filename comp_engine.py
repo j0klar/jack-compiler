@@ -7,16 +7,15 @@ class Comp_Engine:
     def comp_class(self):
         self.tokenizer.advance()
         self.file_out.write("<class>\n")
-        # Handle 'class'
+        # Handle 'class' className
         self.process_fixed("class")
-        # Handle className
         self.process_chosen()
         # Handle '{'
         self.process_fixed("{")
-        # Handle classVarDec
-        self.comp_class_var_dec()
-        # Handle subroutineDec
-        self.comp_subroutine()
+        # Handle classVarDec*
+        while self.tokenizer.get_token() in ["static", "field"]: self.comp_class_var_dec()
+        # Handle subroutineDec*
+        while self.tokenizer.get_token() in ["constructor", "function", "method"]: self.comp_subroutine()
         # Handle '}'
         self.process_fixed("}")
         self.file_out.write("</class>")
@@ -27,9 +26,8 @@ class Comp_Engine:
         if self.tokenizer.get_token() == "static": self.process_fixed("static")
         elif self.tokenizer.get_token() == "field": self.process_fixed("field")
         else: print("Syntax Error: '" + self.tokenizer.get_token() + "' was not 'static' or 'field'!")
-        # Handle type
+        # Handle type varName
         self.comp_type()
-        # Handle varName
         self.process_chosen()
         # Handle (',' varName)*
         while self.tokenizer.get_token() == ",":
@@ -49,42 +47,52 @@ class Comp_Engine:
         # Handle 'void'|type
         if self.tokenizer.get_token() == "void": self.process_fixed("void")
         else: self.comp_type()
-        # Handle subroutineName
+        # Handle subroutineName '('
         self.process_chosen()
-        # Handle '('
         self.process_fixed("(")
-        # Handle parameterList
-        self.comp_parameter_list()
-        # Handle ')'
+        # Handle parameterList?
+        if self.tokenizer.get_token() != ")":
+            self.comp_parameter_list()
+        # Handle ')' subroutineBody
         self.process_fixed(")")
-        # Handle subroutineBody
         self.comp_subroutine_body()
         self.file_out.write("</subroutineDec>\n")
         
     def comp_subroutine_body(self):
         self.file_out.write("<subroutineBody>\n")
-        # Handle '{'
+        # Handle '{' varDec*
         self.process_fixed("{")
-        # Handle varDec*
-        if self.tokenizer.get_token() == "var": self.comp_var_dec()
-        # Handle statements
+        while self.tokenizer.get_token() == "var": self.comp_var_dec()
+        # Handle statements '}'
         self.comp_statements()
-        # Handle '}'
         self.process_fixed("}")
         self.file_out.write("</subroutineBody>\n")
-        
-    def comp_type(self):
-        # Handle 'int'|'char'|'boolean'|className
-        if self.tokenizer.get_token() == "int": self.process_fixed("int")
-        elif self.tokenizer.get_token() == "char": self.process_fixed("char")
-        elif self.tokenizer.get_token() == "boolean": self.process_fixed("boolean")
-        else: self.process_chosen()
 
     def comp_parameter_list(self):
-        pass
+        self.file_out.write("<parameterList>\n")
+        # Handle type varName
+        self.comp_type()
+        self.process_chosen()
+        # Handle (',' type varName)*
+        while self.tokenizer.get_token() == ",":
+            self.process_fixed(",")
+            self.comp_type()
+            self.process_chosen()
+        self.file_out.write("</parameterList>\n")
         
     def comp_var_dec(self):
-        pass
+        self.file_out.write("<varDec>\n")
+        # Handle 'var' type varName
+        self.process_fixed("var")
+        self.comp_type()
+        self.process_chosen()
+        # Handle (',' varName)*
+        while self.tokenizer.get_token() == ",":
+            self.process_fixed(",")
+            self.process_chosen()
+        # Handle ';'
+        self.process_fixed(";")
+        self.file_out.write("</varDec>\n")
         
     def comp_statements(self):
         pass
@@ -112,9 +120,16 @@ class Comp_Engine:
         
     def comp_expression_list(self):
         pass
+     
+    def comp_type(self):
+        # Handle 'int'|'char'|'boolean'|className
+        if self.tokenizer.get_token() == "int": self.process_fixed("int")
+        elif self.tokenizer.get_token() == "char": self.process_fixed("char")
+        elif self.tokenizer.get_token() == "boolean": self.process_fixed("boolean")
+        else: self.process_chosen()
     
-    # Handle keyword|symbol
     def process_fixed(self, token):
+        # Handle keyword|symbol
         current_token = self.tokenizer.get_token()
         token_type = self.tokenizer.token_type()
         if current_token == token:
@@ -130,8 +145,8 @@ class Comp_Engine:
         else: print("Syntax Error: '" + current_token + "' was not '" + token + "'!")
         self.tokenizer.advance()
     
-    # Handle identifier|integerConstant|StringConstant
     def process_chosen(self):
+        # Handle identifier|integerConstant|StringConstant
         current_token = self.tokenizer.get_token()
         token_type = self.tokenizer.token_type()
         if token_type == "IDENTIFIER": 
