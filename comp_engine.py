@@ -1,10 +1,21 @@
 class Comp_Engine:
 
-    def __init__(self, file_in, file_out):
-        pass
+    def __init__(self, tokenizer, file_out):
+        self.tokenizer = tokenizer
+        self.file_out = file_out
         
     def comp_class(self):
-        pass
+        self.tokenizer.advance()
+        self.file_out.write("<class>\n")
+        self.process_token("class")
+        if self.tokenizer.token_type() == "IDENTIFIER": 
+            self.file_out.write("  <identifier> " + self.tokenizer.get_token() + " </identifier>\n")
+        else: print("Syntax error while processing " + self.tokenizer.get_token())
+        self.process_token("{")
+        self.comp_class_var_dec()
+        self.comp_subroutine()
+        self.process_token("}")
+        self.file_out.write("</class>")
         
     def comp_class_var_dec(self):
         pass
@@ -46,4 +57,14 @@ class Comp_Engine:
         pass
         
     def comp_expression_list(self):
+        pass
+        
+    def process_token(self, token):
+        current_token = self.tokenizer.get_token()
+        if current_token == token:
+            self.write_xml(token)
+        else: print("Syntax error while processing " + current_token)
+        self.tokenizer.advance()
+            
+    def write_xml(self, token):
         pass
