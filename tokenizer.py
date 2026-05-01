@@ -1,3 +1,5 @@
+from errors import JackSyntaxError
+
 KEYWORDS = frozenset({"class", "constructor", "function", "method", "field", "static", "var", "int", "char", "boolean", "void", "true", "false", "null", "this", "let", "do", "if", "else", "while", "return"})
 SYMBOLS = frozenset("{}()[].,;+-*/&|<>=~")
 
@@ -68,7 +70,7 @@ class Tokenizer:
                     continue
                     
                 else:
-                    print(chars[i] + " is not a valid character!")
+                    raise JackSyntaxError(f"Invalid character '{chars[i]}' at position {i}")
                     
     def more_tokens(self):
         return self.cursor < len(self.tokens)

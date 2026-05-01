@@ -2,35 +2,35 @@
 
 from tokenizer import Tokenizer
 from comp_engine import CompEngine
+from errors import JackSyntaxError
 import sys, os
-    
+
 def main():
     path_in = sys.argv[1]
-       
-    if os.path.isfile(path_in) and path_in[-5:] == ".jack":
-        # Tokenizing phase .xml-output
-        tokenizer = Tokenizer(path_in)
-        with open(path_in[:-5]+"T.xml", "w") as lex_out:
-            _tokenize_file(tokenizer, lex_out)
-        # Parsing phase .xml-output
-        tokenizer = Tokenizer(path_in)
-        with open(path_in[:-5]+".xml", "w") as parse_out:
-            comp_engine = CompEngine(tokenizer, parse_out)
-            comp_engine.comp_class()
-        
-    elif os.path.isdir(path_in):
-        dir_in = os.listdir(path_in)
-        for file in dir_in:
-            if file[-5:] == ".jack":
-                # Tokenizing phase .xml-output
-                tokenizer = Tokenizer(os.path.join(path_in, file))
-                with open(os.path.join(path_in, file[:-5]+"T.xml"), "w") as lex_out:
-                    _tokenize_file(tokenizer, lex_out)
-                # Parsing phase .xml-output
-                tokenizer = Tokenizer(os.path.join(path_in, file))
-                with open(os.path.join(path_in, file[:-5]+".xml"), "w") as parse_out:
-                    comp_engine = CompEngine(tokenizer, parse_out)
-                    comp_engine.comp_class()
+    try:
+        if os.path.isfile(path_in) and path_in[-5:] == ".jack":
+            _analyze_file(path_in)
+        elif os.path.isdir(path_in):
+            for file in os.listdir(path_in):
+                if file[-5:] == ".jack":
+                    _analyze_file(os.path.join(path_in, file))
+        else:
+            print(f"Error: '{path_in}' is not a .jack file or directory", file=sys.stderr)
+            sys.exit(1)
+    except JackSyntaxError as e:
+        print(f"Syntax error: {e}", file=sys.stderr)
+        sys.exit(1)
+           
+def _analyze_file(path):
+    # Tokenizing phase .xml-output
+    tokenizer = Tokenizer(path)
+    with open(path[:-5]+"T.xml", "w") as lex_out:
+        _tokenize_file(tokenizer, lex_out)
+    # Parsing phase .xml-output   
+    tokenizer = Tokenizer(path)
+    with open(path[:-5]+".xml", "w") as parse_out:
+        comp_engine = CompEngine(tokenizer, parse_out)
+        comp_engine.comp_class()
 
 def _tokenize_file(tokenizer, file):
     file.write("<tokens>\n")

@@ -1,3 +1,5 @@
+from errors import JackSyntaxError
+
 OPS = frozenset("+-*/&|<>=")
 UNARY_OPS = frozenset("-~")
 KEYWORD_CONSTANTS = frozenset({"true", "false", "null", "this"})
@@ -18,9 +20,11 @@ class CompEngine:
         # Handle '{'
         self.process_fixed("{")
         # Handle classVarDec*
-        while self.tokenizer.get_token() in ("static", "field"): self.comp_class_var_dec()
+        while self.tokenizer.get_token() in ("static", "field"): 
+            self.comp_class_var_dec()
         # Handle subroutineDec*
-        while self.tokenizer.get_token() in ("constructor", "function", "method"): self.comp_subroutine()
+        while self.tokenizer.get_token() in ("constructor", "function", "method"): 
+            self.comp_subroutine()
         # Handle '}'
         self.process_fixed("}")
         self.file_out.write("</class>")
@@ -28,9 +32,11 @@ class CompEngine:
     def comp_class_var_dec(self):
         self.file_out.write("<classVarDec>\n")
         # Handle 'static'|'field'
-        if self.tokenizer.get_token() in ("static", "field"): 
-            self.process_fixed(self.tokenizer.get_token())
-        else: print("Syntax Error: '" + self.tokenizer.get_token() + "' was not 'static' or 'field'!")
+        current_token = self.tokenizer.get_token()
+        if current_token in ("static", "field"): 
+            self.process_fixed(current_token)
+        else: 
+            raise JackSyntaxError(f"Expected 'static' or 'field' but got '{current_token}'")
         # Handle type varName
         self.comp_type()
         self.process_chosen()
@@ -45,9 +51,11 @@ class CompEngine:
     def comp_subroutine(self):
         self.file_out.write("<subroutineDec>\n")
         # Handle 'constructor'|'function'|'method'
-        if self.tokenizer.get_token() in ("constructor", "function", "method"):
-            self.process_fixed(self.tokenizer.get_token())
-        else: print("Syntax Error: '" + self.tokenizer.get_token() + "' was not 'constructor', 'function', or 'method'!")
+        current_token = self.tokenizer.get_token()
+        if current_token in ("constructor", "function", "method"):
+            self.process_fixed(current_token)
+        else: 
+            raise JackSyntaxError(f"Expected 'constructor', 'function', or 'method' but got '{current_token}'")
         # Handle 'void'|type
         if self.tokenizer.get_token() == "void": 
             self.process_fixed("void")
@@ -79,7 +87,8 @@ class CompEngine:
         self.file_out.write("<subroutineBody>\n")
         # Handle '{' varDec*
         self.process_fixed("{")
-        while self.tokenizer.get_token() == "var": self.comp_var_dec()
+        while self.tokenizer.get_token() == "var":
+            self.comp_var_dec()
         # Handle statements '}'
         self.comp_statements()
         self.process_fixed("}")
@@ -215,7 +224,8 @@ class CompEngine:
             # Handle subroutineCall
             elif self.tokenizer.get_token() in ("(", "."):
                 self.comp_call_suffix()
-        else: print("Syntax Error: '" + current_token + "' was not part of a correct term!")
+        else:
+            raise JackSyntaxError(f"Expected a valid term but got '{current_token}'")
         self.file_out.write("</term>\n")
         
     def comp_call_suffix(self):
@@ -262,8 +272,10 @@ class CompEngine:
                     case ">": current_token = "&gt;"
                     case "&": current_token = "&amp;"
                 self.file_out.write("<symbol> " + current_token + " </symbol>\n")
-            else: print("Syntax Error: '" + current_token + "' was not a keyword or symbol!")
-        else: print("Syntax Error: '" + current_token + "' was not '" + token + "'!")
+            else: 
+                raise JackSyntaxError(f"Expected keyword or symbol but got '{current_token}'")
+        else: 
+            raise JackSyntaxError(f"Expected '{token}' but got '{current_token}'")
         self.tokenizer.advance()
     
     def process_chosen(self):
@@ -276,5 +288,6 @@ class CompEngine:
             self.file_out.write("<stringConstant> " + self.tokenizer.str_val() + " </stringConstant>\n")
         elif token_type == "INT_CONST": 
             self.file_out.write("<integerConstant> " + str(self.tokenizer.int_val()) + " </integerConstant>\n")
-        else: print("Syntax Error: '" + current_token + "' was not an identifier, string, or integer!")
+        else:
+            raise JackSyntaxError(f"Expected identifier, string, or integer but got '{current_token}'")
         self.tokenizer.advance()
