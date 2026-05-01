@@ -13,6 +13,8 @@
 <keyword> void </keyword>
 <identifier> main </identifier>
 <symbol> ( </symbol>
+<parameterList>
+</parameterList>
 <symbol> ) </symbol>
 <subroutineBody>
 <symbol> { </symbol>
@@ -27,6 +29,12 @@
 <keyword> let </keyword>
 <identifier> game </identifier>
 <symbol> = </symbol>
+<expression>
+<term>
+<identifier> game </identifier>
+</term>
+</expression>
+<symbol> ; </symbol>
 </letStatement>
 </statements>
 </subroutineBody>

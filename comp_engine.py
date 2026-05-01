@@ -1,3 +1,7 @@
+OPS = frozenset("+-*/&|<>=")
+UNARYOPS = frozenset("-~")
+KEYWORDCONSTANTS = frozenset({"true", "false", "null", "this"})
+
 class Comp_Engine:
     """Parses a stream of tokens according to the Jack grammar and constructs a parse tree."""
 
@@ -51,9 +55,8 @@ class Comp_Engine:
         # Handle subroutineName '('
         self.process_chosen()
         self.process_fixed("(")
-        # Handle parameterList?
-        if self.tokenizer.get_token() != ")":
-            self.comp_parameter_list()
+        # Handle parameterList
+        self.comp_parameter_list()
         # Handle ')' subroutineBody
         self.process_fixed(")")
         self.comp_subroutine_body()
@@ -61,14 +64,15 @@ class Comp_Engine:
         
     def comp_parameter_list(self):
         self.file_out.write("<parameterList>\n")
-        # Handle type varName
-        self.comp_type()
-        self.process_chosen()
-        # Handle (',' type varName)*
-        while self.tokenizer.get_token() == ",":
-            self.process_fixed(",")
+        # Handle (type varName (',' type varName)*)?
+        if self.tokenizer.get_token() != ")":
             self.comp_type()
             self.process_chosen()
+            # Handle (',' type varName)*
+            while self.tokenizer.get_token() == ",":
+                self.process_fixed(",")
+                self.comp_type()
+                self.process_chosen()
         self.file_out.write("</parameterList>\n")
         
     def comp_subroutine_body(self):
@@ -169,13 +173,68 @@ class Comp_Engine:
         self.file_out.write("</returnStatement>\n")
         
     def comp_expression(self):
-        pass
+        self.file_out.write("<expression>\n")
+        # Handle term
+        self.comp_term()
+        # Handle (op term)*
+        while self.tokenizer.get_token() in OPS:
+            self.process_fixed(self.tokenizer.get_token())
+            self.comp_term()
+        self.file_out.write("</expression>\n")
         
     def comp_term(self):
-        pass
+        self.file_out.write("<term>\n")
+        current_token = self.tokenizer.get_token()
+        token_type = self.tokenizer.token_type()
+        # Handle integerConstant|stringConstant
+        if token_type in ["STRING_CONST", "INT_CONST"]:
+            self.process_chosen()
+        # Handle keywordConstant
+        elif current_token in KEYWORDCONSTANTS:
+            self.process_fixed(current_token)
+        # Handle unaryOp term
+        elif current_token in UNARYOPS:
+            self.process_fixed(current_token)
+            self.comp_term()
+        # Handle '(' expression ')'
+        elif current_token == "(":
+            self.process_fixed("(")
+            self.comp_expression()
+            self.process_fixed(")")
+        # Handle varName|varName '[' expression ']'|subroutineCall
+        elif token_type == "IDENTIFIER":
+            # Handle varName|subroutineName|className
+            self.process_chosen()
+            next_token = self.tokenizer.peek()
+            # Handle '[' expression ']'
+            if next_token == "[":
+                self.process_fixed("[")
+                self.comp_expression()
+                self.process_fixed("]")
+            # Handle '(' expressionList ')'
+            elif next_token == "(":
+                self.process_fixed("(")
+                self.comp_expression_list()
+                self.process_fixed(")")
+            # Handle '.' subroutineName '(' expressionList ')'
+            elif next_token == ".":
+                self.process_chosen()
+                self.process_fixed("(")
+                self.comp_expression_list()
+                self.process_fixed(")")
+        else: print("Syntax Error: '" + current_token + "' was not part of a correct term!")
+        self.file_out.write("</term>\n")
         
     def comp_expression_list(self):
-        pass
+        self.file_out.write("<expressionList>\n")
+        # Handle (expression (',' expression)*)?
+        if self.tokenizer.get_token() != ")":
+            self.comp_expression()
+            # Handle (',' expression)*
+            while self.tokenizer.get_token() == ",":
+                self.process_fixed(",")
+                self.comp_expression()
+        self.file_out.write("</expressionList>\n")
      
     def comp_type(self):
         # Handle 'int'|'char'|'boolean'|className
@@ -201,7 +260,7 @@ class Comp_Engine:
         self.tokenizer.advance()
     
     def process_chosen(self):
-        # Handle identifier|integerConstant|StringConstant
+        # Handle identifier|integerConstant|stringConstant
         current_token = self.tokenizer.get_token()
         token_type = self.tokenizer.token_type()
         if token_type == "IDENTIFIER": 
