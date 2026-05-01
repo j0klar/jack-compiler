@@ -58,16 +58,6 @@ class Comp_Engine:
         self.comp_subroutine_body()
         self.file_out.write("</subroutineDec>\n")
         
-    def comp_subroutine_body(self):
-        self.file_out.write("<subroutineBody>\n")
-        # Handle '{' varDec*
-        self.process_fixed("{")
-        while self.tokenizer.get_token() == "var": self.comp_var_dec()
-        # Handle statements '}'
-        self.comp_statements()
-        self.process_fixed("}")
-        self.file_out.write("</subroutineBody>\n")
-
     def comp_parameter_list(self):
         self.file_out.write("<parameterList>\n")
         # Handle type varName
@@ -79,6 +69,16 @@ class Comp_Engine:
             self.comp_type()
             self.process_chosen()
         self.file_out.write("</parameterList>\n")
+        
+    def comp_subroutine_body(self):
+        self.file_out.write("<subroutineBody>\n")
+        # Handle '{' varDec*
+        self.process_fixed("{")
+        while self.tokenizer.get_token() == "var": self.comp_var_dec()
+        # Handle statements '}'
+        self.comp_statements()
+        self.process_fixed("}")
+        self.file_out.write("</subroutineBody>\n")
         
     def comp_var_dec(self):
         self.file_out.write("<varDec>\n")
@@ -95,22 +95,80 @@ class Comp_Engine:
         self.file_out.write("</varDec>\n")
         
     def comp_statements(self):
-        pass
+        self.file_out.write("<statements>\n")
+        # Handle (letStatement|ifStatement|whileStatement|doStatement|returnStatement)*
+        if self.tokenizer.get_token() == "let": self.comp_let()
+        elif self.tokenizer.get_token() == "if": self.comp_if()
+        elif self.tokenizer.get_token() == "while": self.comp_while()
+        elif self.tokenizer.get_token() == "do": self.comp_do()
+        elif self.tokenizer.get_token() == "return": self.comp_return()
+        self.file_out.write("</statements>\n")
         
     def comp_let(self):
-        pass
+        self.file_out.write("<letStatement>\n")
+        # Handle 'let' varName
+        self.process_fixed("let")
+        self.process_chosen()
+        # Handle ('[' expression ']')?
+        if self.tokenizer.get_token() == "[":
+            self.process_fixed("[")
+            self.comp_expression()
+            self.process_fixed("]")
+        # Handle '=' expression ';'
+        self.process_fixed("=")
+        self.comp_expression()
+        self.process_fixed(";")
+        self.file_out.write("</letStatement>\n")
         
     def comp_if(self):
-        pass
+        self.file_out.write("<ifStatement>\n")
+        # Handle 'if' '('
+        self.process_fixed("if")
+        self.process_fixed("(")
+        # Handle expression ')'
+        self.comp_expression()
+        self.process_fixed(")")
+        # Handle '{' statements '}'
+        self.process_fixed("{")
+        self.comp_statements()
+        self.process_fixed("}")
+        # Handle ('else' '{' statements '}')?
+        if self.tokenizer.get_token == "else":
+            self.process_fixed("else")
+            self.process_fixed("{")
+            self.comp_statements()
+            self.process_fixed("}")
+        self.file_out.write("</ifStatement>\n")
         
     def comp_while(self):
-        pass
+        self.file_out.write("<whileStatement>\n")
+        # Handle 'while' '('
+        self.process_fixed("while")
+        self.process_fixed("(")
+        # Handle expression ')'
+        self.comp_expression()
+        self.process_fixed(")")
+        # Handle '{' statements '}'
+        self.process_fixed("{")
+        self.comp_statements()
+        self.process_fixed("}")
+        self.file_out.write("</whileStatement>\n")
         
     def comp_do(self):
-        pass
+        self.file_out.write("<doStatement>\n")
+        # Handle 'do' subroutineCall ';'
+        self.process_fixed("do")
+        self.comp_term()
+        self.process_fixed(";")
+        self.file_out.write("</doStatement>\n")
         
     def comp_return(self):
-        pass
+        self.file_out.write("<returnStatement>\n")
+        # Handle 'return' expression? ';'
+        self.process_fixed("return")
+        self.comp_expression()
+        self.process_fixed(";")
+        self.file_out.write("</returnStatement>\n")
         
     def comp_expression(self):
         pass
