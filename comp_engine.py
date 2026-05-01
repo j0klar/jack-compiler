@@ -1,4 +1,5 @@
 class Comp_Engine:
+    """Parses a stream of tokens according to the Jack grammar and constructs a parse tree."""
 
     def __init__(self, tokenizer, file_out):
         self.tokenizer = tokenizer
@@ -23,8 +24,8 @@ class Comp_Engine:
     def comp_class_var_dec(self):
         self.file_out.write("<classVarDec>\n")
         # Handle 'static'|'field'
-        if self.tokenizer.get_token() == "static": self.process_fixed("static")
-        elif self.tokenizer.get_token() == "field": self.process_fixed("field")
+        if self.tokenizer.get_token() in ["static", "field"]: 
+            self.process_fixed(self.tokenizer.get_token())
         else: print("Syntax Error: '" + self.tokenizer.get_token() + "' was not 'static' or 'field'!")
         # Handle type varName
         self.comp_type()
@@ -40,12 +41,12 @@ class Comp_Engine:
     def comp_subroutine(self):
         self.file_out.write("<subroutineDec>\n")
         # Handle 'constructor'|'function'|'method'
-        if self.tokenizer.get_token() == "constructor": self.process_fixed("constructor")
-        elif self.tokenizer.get_token() == "function": self.process_fixed("function")
-        elif self.tokenizer.get_token() == "method": self.process_fixed("method")
+        if self.tokenizer.get_token() in ["constructor", "function", "method"]:
+            self.process_fixed(self.tokenizer.get_token())
         else: print("Syntax Error: '" + self.tokenizer.get_token() + "' was not 'constructor', 'function', or 'method'!")
         # Handle 'void'|type
-        if self.tokenizer.get_token() == "void": self.process_fixed("void")
+        if self.tokenizer.get_token() == "void": 
+            self.process_fixed("void")
         else: self.comp_type()
         # Handle subroutineName '('
         self.process_chosen()
@@ -97,11 +98,8 @@ class Comp_Engine:
     def comp_statements(self):
         self.file_out.write("<statements>\n")
         # Handle (letStatement|ifStatement|whileStatement|doStatement|returnStatement)*
-        if self.tokenizer.get_token() == "let": self.comp_let()
-        elif self.tokenizer.get_token() == "if": self.comp_if()
-        elif self.tokenizer.get_token() == "while": self.comp_while()
-        elif self.tokenizer.get_token() == "do": self.comp_do()
-        elif self.tokenizer.get_token() == "return": self.comp_return()
+        if self.tokenizer.get_token() in ["let", "if", "while", "do", "return"]:
+            getattr(self, "comp_" + self.tokenizer.get_token())()
         self.file_out.write("</statements>\n")
         
     def comp_let(self):
@@ -181,9 +179,8 @@ class Comp_Engine:
      
     def comp_type(self):
         # Handle 'int'|'char'|'boolean'|className
-        if self.tokenizer.get_token() == "int": self.process_fixed("int")
-        elif self.tokenizer.get_token() == "char": self.process_fixed("char")
-        elif self.tokenizer.get_token() == "boolean": self.process_fixed("boolean")
+        if self.tokenizer.get_token() in ["int", "char", "boolean"]:
+            self.process_fixed(self.tokenizer.get_token())
         else: self.process_chosen()
     
     def process_fixed(self, token):
