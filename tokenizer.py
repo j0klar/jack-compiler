@@ -74,8 +74,9 @@ class Tokenizer:
         return self.cursor < len(self.tokens)
         
     def advance(self):
-        self.token = self.tokens[self.cursor]
-        self.cursor += 1
+        if self.more_tokens():
+            self.token = self.tokens[self.cursor]
+            self.cursor += 1
         
     def token_type(self):
         if self.token in KEYWORDS: return "KEYWORD"
@@ -92,6 +93,3 @@ class Tokenizer:
         
     def str_val(self):
         return self.token[1:-1]
-        
-    def peek(self):
-        return self.tokens[self.cursor + 1]

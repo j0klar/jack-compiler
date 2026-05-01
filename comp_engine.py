@@ -1,8 +1,8 @@
 OPS = frozenset("+-*/&|<>=")
-UNARYOPS = frozenset("-~")
-KEYWORDCONSTANTS = frozenset({"true", "false", "null", "this"})
+UNARY_OPS = frozenset("-~")
+KEYWORD_CONSTANTS = frozenset({"true", "false", "null", "this"})
 
-class Comp_Engine:
+class CompEngine:
     """Parses a stream of tokens according to the Jack grammar and constructs a parse tree."""
 
     def __init__(self, tokenizer, file_out):
@@ -18,9 +18,9 @@ class Comp_Engine:
         # Handle '{'
         self.process_fixed("{")
         # Handle classVarDec*
-        while self.tokenizer.get_token() in ["static", "field"]: self.comp_class_var_dec()
+        while self.tokenizer.get_token() in ("static", "field"): self.comp_class_var_dec()
         # Handle subroutineDec*
-        while self.tokenizer.get_token() in ["constructor", "function", "method"]: self.comp_subroutine()
+        while self.tokenizer.get_token() in ("constructor", "function", "method"): self.comp_subroutine()
         # Handle '}'
         self.process_fixed("}")
         self.file_out.write("</class>")
@@ -28,7 +28,7 @@ class Comp_Engine:
     def comp_class_var_dec(self):
         self.file_out.write("<classVarDec>\n")
         # Handle 'static'|'field'
-        if self.tokenizer.get_token() in ["static", "field"]: 
+        if self.tokenizer.get_token() in ("static", "field"): 
             self.process_fixed(self.tokenizer.get_token())
         else: print("Syntax Error: '" + self.tokenizer.get_token() + "' was not 'static' or 'field'!")
         # Handle type varName
@@ -45,7 +45,7 @@ class Comp_Engine:
     def comp_subroutine(self):
         self.file_out.write("<subroutineDec>\n")
         # Handle 'constructor'|'function'|'method'
-        if self.tokenizer.get_token() in ["constructor", "function", "method"]:
+        if self.tokenizer.get_token() in ("constructor", "function", "method"):
             self.process_fixed(self.tokenizer.get_token())
         else: print("Syntax Error: '" + self.tokenizer.get_token() + "' was not 'constructor', 'function', or 'method'!")
         # Handle 'void'|type
@@ -102,7 +102,7 @@ class Comp_Engine:
     def comp_statements(self):
         self.file_out.write("<statements>\n")
         # Handle (letStatement|ifStatement|whileStatement|doStatement|returnStatement)*
-        if self.tokenizer.get_token() in ["let", "if", "while", "do", "return"]:
+        while self.tokenizer.get_token() in ("let", "if", "while", "do", "return"):
             getattr(self, "comp_" + self.tokenizer.get_token())()
         self.file_out.write("</statements>\n")
         
@@ -135,7 +135,7 @@ class Comp_Engine:
         self.comp_statements()
         self.process_fixed("}")
         # Handle ('else' '{' statements '}')?
-        if self.tokenizer.get_token == "else":
+        if self.tokenizer.get_token() == "else":
             self.process_fixed("else")
             self.process_fixed("{")
             self.comp_statements()
@@ -160,7 +160,8 @@ class Comp_Engine:
         self.file_out.write("<doStatement>\n")
         # Handle 'do' subroutineCall ';'
         self.process_fixed("do")
-        self.comp_term()
+        self.process_chosen()
+        self.comp_call_suffix()
         self.process_fixed(";")
         self.file_out.write("</doStatement>\n")
         
@@ -168,7 +169,8 @@ class Comp_Engine:
         self.file_out.write("<returnStatement>\n")
         # Handle 'return' expression? ';'
         self.process_fixed("return")
-        self.comp_expression()
+        if self.tokenizer.get_token() != ";":
+            self.comp_expression()
         self.process_fixed(";")
         self.file_out.write("</returnStatement>\n")
         
@@ -187,13 +189,13 @@ class Comp_Engine:
         current_token = self.tokenizer.get_token()
         token_type = self.tokenizer.token_type()
         # Handle integerConstant|stringConstant
-        if token_type in ["STRING_CONST", "INT_CONST"]:
+        if token_type in ("INT_CONST", "STRING_CONST"):
             self.process_chosen()
         # Handle keywordConstant
-        elif current_token in KEYWORDCONSTANTS:
+        elif current_token in KEYWORD_CONSTANTS:
             self.process_fixed(current_token)
         # Handle unaryOp term
-        elif current_token in UNARYOPS:
+        elif current_token in UNARY_OPS:
             self.process_fixed(current_token)
             self.comp_term()
         # Handle '(' expression ')'
@@ -205,25 +207,30 @@ class Comp_Engine:
         elif token_type == "IDENTIFIER":
             # Handle varName|subroutineName|className
             self.process_chosen()
-            next_token = self.tokenizer.peek()
             # Handle '[' expression ']'
-            if next_token == "[":
+            if self.tokenizer.get_token() == "[":
                 self.process_fixed("[")
                 self.comp_expression()
                 self.process_fixed("]")
-            # Handle '(' expressionList ')'
-            elif next_token == "(":
-                self.process_fixed("(")
-                self.comp_expression_list()
-                self.process_fixed(")")
-            # Handle '.' subroutineName '(' expressionList ')'
-            elif next_token == ".":
-                self.process_chosen()
-                self.process_fixed("(")
-                self.comp_expression_list()
-                self.process_fixed(")")
+            # Handle subroutineCall
+            elif self.tokenizer.get_token() in ("(", "."):
+                self.comp_call_suffix()
         else: print("Syntax Error: '" + current_token + "' was not part of a correct term!")
         self.file_out.write("</term>\n")
+        
+    def comp_call_suffix(self):
+        # Handle '(' expressionList ')'
+        if self.tokenizer.get_token() == "(":
+            self.process_fixed("(")
+            self.comp_expression_list()
+            self.process_fixed(")")
+        # Handle '.' subroutineName '(' expressionList ')'
+        elif self.tokenizer.get_token() == ".":
+            self.process_fixed(".")
+            self.process_chosen()
+            self.process_fixed("(")
+            self.comp_expression_list()
+            self.process_fixed(")")
         
     def comp_expression_list(self):
         self.file_out.write("<expressionList>\n")
@@ -238,7 +245,7 @@ class Comp_Engine:
      
     def comp_type(self):
         # Handle 'int'|'char'|'boolean'|className
-        if self.tokenizer.get_token() in ["int", "char", "boolean"]:
+        if self.tokenizer.get_token() in ("int", "char", "boolean"):
             self.process_fixed(self.tokenizer.get_token())
         else: self.process_chosen()
     

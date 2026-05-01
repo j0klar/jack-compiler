@@ -1,7 +1,7 @@
 """Performs syntax analysis for one or more .jack-files and outputs one .xml-file each."""
 
 from tokenizer import Tokenizer
-from comp_engine import Comp_Engine
+from comp_engine import CompEngine
 import sys, os
     
 def main():
@@ -15,7 +15,7 @@ def main():
         # Parsing phase .xml-output
         tokenizer = Tokenizer(path_in)
         with open(path_in[:-5]+".xml", "w") as parse_out:
-            comp_engine = Comp_Engine(tokenizer, parse_out)
+            comp_engine = CompEngine(tokenizer, parse_out)
             comp_engine.comp_class()
         
     elif os.path.isdir(path_in):
@@ -29,7 +29,7 @@ def main():
                 # Parsing phase .xml-output
                 tokenizer = Tokenizer(os.path.join(path_in, file))
                 with open(os.path.join(path_in, file[:-5]+".xml"), "w") as parse_out:
-                    comp_engine = Comp_Engine(tokenizer, parse_out)
+                    comp_engine = CompEngine(tokenizer, parse_out)
                     comp_engine.comp_class()
 
 def _tokenize_file(tokenizer, file):
