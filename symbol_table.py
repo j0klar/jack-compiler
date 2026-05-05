@@ -1,5 +1,5 @@
 class SymbolTable:
-    """Provides services to manage class- and subroutine-level symbol tables."""
+    """Manages symbol tables for the compiler at the class- and subroutine-level."""
     
     def __init__(self):
         self.class_table = {}

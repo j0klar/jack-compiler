@@ -6,26 +6,27 @@ SYMBOLS = frozenset("{}()[].,;+-*/&|<>=~")
 class Tokenizer:
     """Tokenizes a single .jack-file into a stream of categorized tokens."""
 
-    def __init__(self, file):
+    def __init__(self, file_in):
         self.cursor = 0
         self.token = None
         self.tokens = []
         
-        with open(file) as stream:
+        with open(file_in) as stream:
             chars = stream.read()
             i = 0
-            
             while i < len(chars):
-                if chars[i].isspace(): # Handle space, tab & newline
+                # Handle space, tab & newline
+                if chars[i].isspace():
                     i += 1
                     continue
-                    
-                elif chars[i] == "/": # Handle comments (// \n)
+                 # Handle comments (// \n)    
+                elif chars[i] == "/":
                     if chars[i+1] == "/":
                         while chars[i] != "\n":
                             i += 1
-                        continue   
-                    elif chars[i+1] == "*": # Handle comments (/* */, /** */)
+                        continue
+                    # Handle comments (/* */, /** */)
+                    elif chars[i+1] == "*":
                         i += 2
                         while not (chars[i] == "*" and chars[i+1] == "/"):
                             i += 1
@@ -35,8 +36,8 @@ class Tokenizer:
                         self.tokens.append(chars[i])
                         i += 1
                         continue
-                        
-                elif chars[i] == "\"": # Handle string literals
+                # Handle string literals        
+                elif chars[i] == "\"":
                     token = chars[i]
                     i += 1
                     while chars[i] != "\"":
@@ -45,8 +46,8 @@ class Tokenizer:
                     self.tokens.append(token + "\"")
                     i += 1
                     continue
-                    
-                elif chars[i].isdecimal(): # Handle integer constants
+                # Handle integer constants    
+                elif chars[i].isdecimal():
                     token = chars[i]
                     i += 1
                     while chars[i].isdecimal():
@@ -54,8 +55,8 @@ class Tokenizer:
                         i += 1
                     self.tokens.append(token)
                     continue
-                
-                elif chars[i].isalpha() or chars[i] == "_": # Handle keywords & identifiers
+                # Handle keywords & identifiers
+                elif chars[i].isalpha() or chars[i] == "_":
                     token = chars[i]
                     i += 1
                     while chars[i].isalnum() or chars[i] == "_":
@@ -63,12 +64,11 @@ class Tokenizer:
                         i += 1
                     self.tokens.append(token)
                     continue
-                    
-                elif chars[i] in SYMBOLS: # Handle symbols
+                # Handle symbols    
+                elif chars[i] in SYMBOLS:
                     self.tokens.append(chars[i])
                     i += 1
                     continue
-                    
                 else:
                     raise JackSyntaxError(f"Invalid character '{chars[i]}' at position {i}")
                     
