@@ -4,6 +4,7 @@ OPS = frozenset("+-*/&|<>=")
 UNARY_OPS = frozenset("-~")
 KEYWORD_CONSTANTS = frozenset({"true", "false", "null", "this"})
 SEGMENT_MAPPING = {"static":"static", "field":"this", "arg":"argument", "var":"local"}
+OP_MAPPING = {"+":"add", "-":"sub", "&":"and", "|":"or", "<":"lt", ">":"gt", "=":"eq"}
 
 class CompEngine:
     """Parses a stream of tokens and generates intermediate VM code according to the Jack grammar."""
@@ -17,12 +18,11 @@ class CompEngine:
         self.tokenizer.advance()
         # Handle 'class' className
         self._consume("class")
-        self.class_name = self.tokenizer.get_token()
-        self._consume_identifier()
+        self.class_name = self._consume_identifier()
         # Handle '{'
         self._consume("{")
         # Handle classVarDec*
-        while self.tokenizer.get_token() in ("static", "field"): 
+        while self.tokenizer.get_token() in ("static", "field"):
             self.comp_class_var_dec()
         # Handle subroutineDec*
         while self.tokenizer.get_token() in ("constructor", "function", "method"): 
@@ -40,7 +40,7 @@ class CompEngine:
         # Handle type varName
         type_ = self.comp_type()
         name = self._consume_identifier()
-        # Add (name, type_, kind) to symbol table
+        # Add static/field variable to class-level symbol table
         self.symbol_table.define(name, type_, kind)
         # Handle (',' varName)*
         while self.tokenizer.get_token() == ",":
@@ -54,11 +54,12 @@ class CompEngine:
         self.symbol_table.reset()
         # Handle 'constructor'|'function'|'method'
         sub_kind = self.tokenizer.get_token()
-        if sub_kind == "method":
+        if sub_kind in ("constructor", "function"):
             self._consume(sub_kind)
+        elif sub_kind == "method":
+            self._consume(sub_kind)
+            # Add current object to subroutine-level symbol table
             self.symbol_table.define("this", self.class_name, "arg")
-        elif sub_kind in ("constructor", "function"):
-            self._consume(sub_kind)
         else: 
             raise JackSyntaxError(f"Expected 'constructor', 'function', or 'method' but got '{sub_kind}'")
         # Handle 'void'|type
@@ -80,6 +81,7 @@ class CompEngine:
         if self.tokenizer.get_token() != ")":
             type_ = self.comp_type()
             name = self._consume_identifier()
+            # Add argument variable to subroutine-level symbol table
             self.symbol_table.define(name, type_, "arg")
             # Handle (',' type varName)*
             while self.tokenizer.get_token() == ",":
@@ -94,8 +96,8 @@ class CompEngine:
         while self.tokenizer.get_token() == "var":
             self.comp_var_dec()
         n_vars = self.symbol_table.var_count("var")
-        # Generate subroutine declaration VM code    
         self.code_writer.write_function(f"{self.class_name}.{sub_name}", n_vars)
+        # Generate setup code for special cases
         if sub_kind == "method":
             self.code_writer.write_push("argument", 0)
             self.code_writer.write_pop("pointer", 0)
@@ -113,6 +115,7 @@ class CompEngine:
         self._consume("var")
         type_ = self.comp_type()
         name = self._consume_identifier()
+        # Add local variable to subroutine-level symbol table
         self.symbol_table.define(name, type_, "var")
         # Handle (',' varName)*
         while self.tokenizer.get_token() == ",":
@@ -174,8 +177,9 @@ class CompEngine:
     def comp_do(self):
         # Handle 'do' subroutineCall ';'
         self._consume("do")
-        name = self._consume_identifier()
-        self.comp_subroutine_call(name)
+        prefix = self._consume_identifier()
+        self.comp_subroutine_call(prefix)
+        # Discard return value
         self.code_writer.write_pop("temp", 0)
         self._consume(";")
         
@@ -185,17 +189,25 @@ class CompEngine:
         if self.tokenizer.get_token() != ";":
             self.comp_expression()
         else:
+            # Return 0 by convention if void
             self.code_writer.write_push("constant", 0)
         self.code_writer.write_return()
         self._consume(";")
         
     def comp_expression(self):
-        # Handle term
+        # Handle term (op term)*
         self.comp_term()
-        # Handle (op term)*
         while self.tokenizer.get_token() in OPS:
-            self._consume(self.tokenizer.get_token())
+            op = self.tokenizer.get_token()
+            self._consume(op)
             self.comp_term()
+            # Postfix handling of stack arithmetic
+            if op == "*":
+                self.code_writer.write_call("Math.multiply", 2)
+            elif op == "/":
+                self.code_writer.write_call("Math.divide", 2)
+            else:
+                self.code_writer.write_arithmetic(OP_MAPPING[op])
         
     def comp_term(self):
         token = self.tokenizer.get_token()
@@ -210,6 +222,7 @@ class CompEngine:
             string = self.tokenizer.str_val()
             self.code_writer.write_push("constant", len(string))
             self.code_writer.write_call("String.new", 1)
+            # Iterative construction of string constant
             for char in string:
                 self.code_writer.write_push("constant", ord(char))
                 self.code_writer.write_call("String.appendChar", 2)
@@ -221,16 +234,17 @@ class CompEngine:
                 self.code_writer.write_arithmetic("neg")
             elif token in ("false", "null"):
                 self.code_writer.write_push("constant", 0)
-            else:
+            else: # token == "this"
                 self.code_writer.write_push("pointer", 0)
             self._consume(token)
         # Handle unaryOp term
         elif token in UNARY_OPS:
             self._consume(token)
             self.comp_term()
+            # Postfix handling of stack arithmetic
             if token == "-":
                 self.code_writer.write_arithmetic("neg")
-            else:
+            else: # token == "~"
                 self.code_writer.write_arithmetic("not")
         # Handle '(' expression ')'
         elif token == "(":
@@ -246,6 +260,7 @@ class CompEngine:
                 self._consume("[")
                 self.comp_expression()
                 self._consume("]")
+                # Array access by *(name+expression)
                 self.code_writer.write_arithmetic("add")
                 self.code_writer.write_pop("pointer", 1)
                 self.code_writer.write_push("that", 0)
@@ -264,19 +279,20 @@ class CompEngine:
         if self.tokenizer.get_token() == ".":
             self._consume(".")
             sub_name = self._consume_identifier()
-            # Handle obj.method()   
+            # In case of obj.method()   
             if self.symbol_table.kind_of(prefix) is not None:
+                obj_type = self.symbol_table.type_of(prefix)
                 self._push_variable(prefix)
                 n_args += 1
                 name = f"{obj_type}.{sub_name}"
-            # Handle Class.function() or Class.constructor()
+            # In case of Class.function() or Class.constructor()
             else:
                 name = f"{prefix}.{sub_name}"
-        # Handle this.method()
+        # In case of method()
         else:
             self.code_writer.write_push("pointer", 0)
             n_args += 1
-            name = f"{self.class_name}.{sub_name}"
+            name = f"{self.class_name}.{prefix}"
         # Handle '(' expressionList ')'
         self._consume("(")
         n_args += self.comp_expression_list()
