@@ -15,10 +15,11 @@ class CompEngine:
     def comp_class(self):
         self.tokenizer.advance()
         # Handle 'class' className
-        self.process_fixed("class")
-        self.process_chosen()
+        self._consume("class")
+        self.class_name = self.tokenizer.get_token()
+        self._consume_identifier()
         # Handle '{'
-        self.process_fixed("{")
+        self._consume("{")
         # Handle classVarDec*
         while self.tokenizer.get_token() in ("static", "field"): 
             self.comp_class_var_dec()
@@ -26,76 +27,88 @@ class CompEngine:
         while self.tokenizer.get_token() in ("constructor", "function", "method"): 
             self.comp_subroutine()
         # Handle '}'
-        self.process_fixed("}")
+        self._consume("}")
         
     def comp_class_var_dec(self):
         # Handle 'static'|'field'
-        current_token = self.tokenizer.get_token()
-        if current_token in ("static", "field"): 
-            self.process_fixed(current_token)
-        else: 
-            raise JackSyntaxError(f"Expected 'static' or 'field' but got '{current_token}'")
+        kind = self.tokenizer.get_token()
+        if kind in ("static", "field"):
+            self._consume(kind)
+        else:
+            raise JackSyntaxError(f"Expected 'static' or 'field' but got '{kind}'")
         # Handle type varName
-        self.comp_type()
-        self.process_chosen()
+        type_ = self.comp_type()
+        name = self._consume_identifier()
+        # Add (name, type_, kind) to symbol table
+        self.symbol_table.define(name, type_, kind)
         # Handle (',' varName)*
         while self.tokenizer.get_token() == ",":
-            self.process_fixed(",")
-            self.process_chosen()
+            self._consume(",")
+            name = self._consume_identifier()
+            self.symbol_table.define(name, type_, kind)
         # Handle ';'
-        self.process_fixed(";")
+        self._consume(";")
         
     def comp_subroutine(self):
+        self.symbol_table.reset()
         # Handle 'constructor'|'function'|'method'
         current_token = self.tokenizer.get_token()
-        if current_token in ("constructor", "function", "method"):
-            self.process_fixed(current_token)
+        if current_token == "method":
+            self._consume(current_token)
+            self.symbol_table.define("this", self.class_name, "arg")
+        elif current_token in ("constructor", "function"):
+            self._consume(current_token)
         else: 
             raise JackSyntaxError(f"Expected 'constructor', 'function', or 'method' but got '{current_token}'")
         # Handle 'void'|type
         if self.tokenizer.get_token() == "void": 
-            self.process_fixed("void")
-        else: self.comp_type()
+            self._consume("void")
+        else: 
+            self.comp_type()
         # Handle subroutineName '('
-        self.process_chosen()
-        self.process_fixed("(")
+        self._consume_identifier()
+        self._consume("(")
         # Handle parameterList
         self.comp_parameter_list()
         # Handle ')' subroutineBody
-        self.process_fixed(")")
+        self._consume(")")
         self.comp_subroutine_body()
         
     def comp_parameter_list(self):
         # Handle (type varName (',' type varName)*)?
         if self.tokenizer.get_token() != ")":
-            self.comp_type()
-            self.process_chosen()
+            type_ = self.comp_type()
+            name = self._consume_identifier()
+            self.symbol_table.define(name, type_, "arg")
             # Handle (',' type varName)*
             while self.tokenizer.get_token() == ",":
-                self.process_fixed(",")
-                self.comp_type()
-                self.process_chosen()
+                self._consume(",")
+                type_ = self.comp_type()
+                name = self._consume_identifier()
+                self.symbol_table.define(name, type_, "arg")
         
     def comp_subroutine_body(self):
         # Handle '{' varDec*
-        self.process_fixed("{")
+        self._consume("{")
         while self.tokenizer.get_token() == "var":
             self.comp_var_dec()
         # Handle statements '}'
         self.comp_statements()
-        self.process_fixed("}")
+        self._consume("}")
         
     def comp_var_dec(self):
         # Handle 'var' type varName
-        self.process_fixed("var")
-        self.comp_type()
-        self.process_chosen()
+        self._consume("var")
+        type_ = self.comp_type()
+        name = self._consume_identifier()
+        self.symbol_table.define(name, type_, "var")
         # Handle (',' varName)*
         while self.tokenizer.get_token() == ",":
-            self.process_fixed(",")
-            self.process_chosen()
+            self._consume(",")
+            name = self._consume_identifier()
+            self.symbol_table.define(name, type_, "var")
         # Handle ';'
-        self.process_fixed(";")
+        self._consume(";")
         
     def comp_statements(self):
         # Handle (letStatement|ifStatement|whileStatement|doStatement|returnStatement)*
@@ -104,68 +117,68 @@ class CompEngine:
         
     def comp_let(self):
         # Handle 'let' varName
-        self.process_fixed("let")
-        self.process_chosen()
+        self._consume("let")
+        self._consume_identifier()
         # Handle ('[' expression ']')?
         if self.tokenizer.get_token() == "[":
-            self.process_fixed("[")
+            self._consume("[")
             self.comp_expression()
-            self.process_fixed("]")
+            self._consume("]")
         # Handle '=' expression ';'
-        self.process_fixed("=")
+        self._consume("=")
         self.comp_expression()
-        self.process_fixed(";")
+        self._consume(";")
         
     def comp_if(self):
         # Handle 'if' '('
-        self.process_fixed("if")
-        self.process_fixed("(")
+        self._consume("if")
+        self._consume("(")
         # Handle expression ')'
         self.comp_expression()
-        self.process_fixed(")")
+        self._consume(")")
         # Handle '{' statements '}'
-        self.process_fixed("{")
+        self._consume("{")
         self.comp_statements()
-        self.process_fixed("}")
+        self._consume("}")
         # Handle ('else' '{' statements '}')?
         if self.tokenizer.get_token() == "else":
-            self.process_fixed("else")
-            self.process_fixed("{")
+            self._consume("else")
+            self._consume("{")
             self.comp_statements()
-            self.process_fixed("}")
+            self._consume("}")
         
     def comp_while(self):
         # Handle 'while' '('
-        self.process_fixed("while")
-        self.process_fixed("(")
+        self._consume("while")
+        self._consume("(")
         # Handle expression ')'
         self.comp_expression()
-        self.process_fixed(")")
+        self._consume(")")
         # Handle '{' statements '}'
-        self.process_fixed("{")
+        self._consume("{")
         self.comp_statements()
-        self.process_fixed("}")
+        self._consume("}")
         
     def comp_do(self):
         # Handle 'do' subroutineCall ';'
-        self.process_fixed("do")
-        self.process_chosen()
+        self._consume("do")
+        self._consume_identifier()
         self.comp_call_suffix()
-        self.process_fixed(";")
+        self._consume(";")
         
     def comp_return(self):
         # Handle 'return' expression? ';'
-        self.process_fixed("return")
+        self._consume("return")
         if self.tokenizer.get_token() != ";":
             self.comp_expression()
-        self.process_fixed(";")
+        self._consume(";")
         
     def comp_expression(self):
         # Handle term
         self.comp_term()
         # Handle (op term)*
         while self.tokenizer.get_token() in OPS:
-            self.process_fixed(self.tokenizer.get_token())
+            self._consume(self.tokenizer.get_token())
             self.comp_term()
         
     def comp_term(self):
@@ -173,28 +186,28 @@ class CompEngine:
         token_type = self.tokenizer.token_type()
         # Handle integerConstant|stringConstant
         if token_type in ("INT_CONST", "STRING_CONST"):
-            self.process_chosen()
+            self.tokenizer.advance()
         # Handle keywordConstant
         elif current_token in KEYWORD_CONSTANTS:
-            self.process_fixed(current_token)
+            self._consume(current_token)
         # Handle unaryOp term
         elif current_token in UNARY_OPS:
-            self.process_fixed(current_token)
+            self._consume(current_token)
             self.comp_term()
         # Handle '(' expression ')'
         elif current_token == "(":
-            self.process_fixed("(")
+            self._consume("(")
             self.comp_expression()
-            self.process_fixed(")")
+            self._consume(")")
         # Handle varName|varName '[' expression ']'|subroutineCall
         elif token_type == "IDENTIFIER":
             # Handle varName|subroutineName|className
-            self.process_chosen()
+            self._consume_identifier()
             # Handle '[' expression ']'
             if self.tokenizer.get_token() == "[":
-                self.process_fixed("[")
+                self._consume("[")
                 self.comp_expression()
-                self.process_fixed("]")
+                self._consume("]")
             # Handle subroutineCall
             elif self.tokenizer.get_token() in ("(", "."):
                 self.comp_call_suffix()
@@ -204,16 +217,16 @@ class CompEngine:
     def comp_call_suffix(self):
         # Handle '(' expressionList ')'
         if self.tokenizer.get_token() == "(":
-            self.process_fixed("(")
+            self._consume("(")
             self.comp_expression_list()
-            self.process_fixed(")")
+            self._consume(")")
         # Handle '.' subroutineName '(' expressionList ')'
         elif self.tokenizer.get_token() == ".":
-            self.process_fixed(".")
-            self.process_chosen()
-            self.process_fixed("(")
+            self._consume(".")
+            self._consume_identifier()
+            self._consume("(")
             self.comp_expression_list()
-            self.process_fixed(")")
+            self._consume(")")
         
     def comp_expression_list(self):
         # Handle (expression (',' expression)*)?
@@ -221,19 +234,29 @@ class CompEngine:
             self.comp_expression()
             # Handle (',' expression)*
             while self.tokenizer.get_token() == ",":
-                self.process_fixed(",")
+                self._consume(",")
                 self.comp_expression()
-     
+                
     def comp_type(self):
         # Handle 'int'|'char'|'boolean'|className
-        if self.tokenizer.get_token() in ("int", "char", "boolean"):
-            self.process_fixed(self.tokenizer.get_token())
-        else: 
-            self.process_chosen()
+        type_ = self.tokenizer.get_token()
+        if type_ in ("int", "char", "boolean"):
+            self._consume(type_)
+            return type_
+        else:
+            return self._consume_identifier()
     
-    def consume(self, token):
+    def _consume(self, token):
         # Advance tokenizer beyond the current token
         current_token = self.tokenizer.get_token()
         if current_token != token:
             raise JackSyntaxError(f"Expected '{token}' but got '{current_token}'")
         self.tokenizer.advance()
+        
+    def _consume_identifier(self):
+        # Advance tokenizer and return the current token
+        current_token = self.tokenizer.get_token()
+        if self.tokenizer.token_type() != "IDENTIFIER":
+            raise JackSyntaxError(f"Expected identifier but got '{current_token}'")
+        self.tokenizer.advance()
+        return current_token
