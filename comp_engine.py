@@ -3,6 +3,7 @@ from errors import JackSyntaxError
 OPS = frozenset("+-*/&|<>=")
 UNARY_OPS = frozenset("-~")
 KEYWORD_CONSTANTS = frozenset({"true", "false", "null", "this"})
+SEGMENT_MAPPING = {"static":"static", "field":"this", "arg":"argument", "var":"local"}
 
 class CompEngine:
     """Parses a stream of tokens and generates intermediate VM code according to the Jack grammar."""
@@ -173,8 +174,9 @@ class CompEngine:
     def comp_do(self):
         # Handle 'do' subroutineCall ';'
         self._consume("do")
-        self._consume_identifier()
-        self.comp_call_suffix()
+        name = self._consume_identifier()
+        self.comp_subroutine_call(name)
+        self.code_writer.write_pop("temp", 0)
         self._consume(";")
         
     def comp_return(self):
@@ -196,60 +198,103 @@ class CompEngine:
             self.comp_term()
         
     def comp_term(self):
-        current_token = self.tokenizer.get_token()
-        token_type = self.tokenizer.token_type()
-        # Handle integerConstant|stringConstant
-        if token_type in ("INT_CONST", "STRING_CONST"):
+        token = self.tokenizer.get_token()
+        ttype = self.tokenizer.token_type()
+        # Handle integerConstant
+        if ttype == "INT_CONST":
+            integer = self.tokenizer.int_val()
+            self.code_writer.write_push("constant", integer)
+            self.tokenizer.advance()
+        # Handle stringConstant    
+        elif ttype == "STRING_CONST":
+            string = self.tokenizer.str_val()
+            self.code_writer.write_push("constant", len(string))
+            self.code_writer.write_call("String.new", 1)
+            for char in string:
+                self.code_writer.write_push("constant", ord(char))
+                self.code_writer.write_call("String.appendChar", 2)
             self.tokenizer.advance()
         # Handle keywordConstant
-        elif current_token in KEYWORD_CONSTANTS:
-            self._consume(current_token)
+        elif token in KEYWORD_CONSTANTS:
+            if token == "true":
+                self.code_writer.write_push("constant", 1)
+                self.code_writer.write_arithmetic("neg")
+            elif token in ("false", "null"):
+                self.code_writer.write_push("constant", 0)
+            else:
+                self.code_writer.write_push("pointer", 0)
+            self._consume(token)
         # Handle unaryOp term
-        elif current_token in UNARY_OPS:
-            self._consume(current_token)
+        elif token in UNARY_OPS:
+            self._consume(token)
             self.comp_term()
+            if token == "-":
+                self.code_writer.write_arithmetic("neg")
+            else:
+                self.code_writer.write_arithmetic("not")
         # Handle '(' expression ')'
-        elif current_token == "(":
+        elif token == "(":
             self._consume("(")
             self.comp_expression()
             self._consume(")")
         # Handle varName|varName '[' expression ']'|subroutineCall
-        elif token_type == "IDENTIFIER":
-            # Handle varName|subroutineName|className
-            self._consume_identifier()
+        elif ttype == "IDENTIFIER":
+            name = self._consume_identifier()
             # Handle '[' expression ']'
             if self.tokenizer.get_token() == "[":
+                self._push_variable(name)
                 self._consume("[")
                 self.comp_expression()
                 self._consume("]")
+                self.code_writer.write_arithmetic("add")
+                self.code_writer.write_pop("pointer", 1)
+                self.code_writer.write_push("that", 0)
             # Handle subroutineCall
             elif self.tokenizer.get_token() in ("(", "."):
-                self.comp_call_suffix()
+                self.comp_subroutine_call(name)
+            # Handle varName
+            else:
+                self._push_variable(name)
         else:
-            raise JackSyntaxError(f"Expected a valid term but got '{current_token}'")
+            raise JackSyntaxError(f"Expected a valid term but got '{token}'")
         
-    def comp_call_suffix(self):
-        # Handle '(' expressionList ')'
-        if self.tokenizer.get_token() == "(":
-            self._consume("(")
-            self.comp_expression_list()
-            self._consume(")")
-        # Handle '.' subroutineName '(' expressionList ')'
-        elif self.tokenizer.get_token() == ".":
+    def comp_subroutine_call(self, prefix):
+        n_args = 0
+        # Handle '.' subroutineName
+        if self.tokenizer.get_token() == ".":
             self._consume(".")
-            self._consume_identifier()
-            self._consume("(")
-            self.comp_expression_list()
-            self._consume(")")
+            sub_name = self._consume_identifier()
+            # Handle obj.method()   
+            if self.symbol_table.kind_of(prefix) is not None:
+                self._push_variable(prefix)
+                n_args += 1
+                name = f"{obj_type}.{sub_name}"
+            # Handle Class.function() or Class.constructor()
+            else:
+                name = f"{prefix}.{sub_name}"
+        # Handle this.method()
+        else:
+            self.code_writer.write_push("pointer", 0)
+            n_args += 1
+            name = f"{self.class_name}.{sub_name}"
+        # Handle '(' expressionList ')'
+        self._consume("(")
+        n_args += self.comp_expression_list()
+        self._consume(")")
+        self.code_writer.write_call(name, n_args)
         
     def comp_expression_list(self):
         # Handle (expression (',' expression)*)?
+        count = 0
         if self.tokenizer.get_token() != ")":
             self.comp_expression()
+            count += 1
             # Handle (',' expression)*
             while self.tokenizer.get_token() == ",":
                 self._consume(",")
                 self.comp_expression()
+                count += 1
+        return count
                 
     def comp_type(self):
         # Handle 'int'|'char'|'boolean'|className
@@ -259,6 +304,13 @@ class CompEngine:
             return type_
         else:
             return self._consume_identifier()
+            
+    def _push_variable(self, name):
+        # Push variable on the corresponding stack memory segment
+        kind = self.symbol_table.kind_of(name)
+        if kind is None:
+            raise JackSyntaxError(f"Undefined variable '{name}'")
+        self.code_writer.write_push(SEGMENT_MAPPING[kind], self.symbol_table.index_of(name))
     
     def _consume(self, token):
         # Advance tokenizer beyond the current token
