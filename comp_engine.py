@@ -52,27 +52,27 @@ class CompEngine:
     def comp_subroutine(self):
         self.symbol_table.reset()
         # Handle 'constructor'|'function'|'method'
-        current_token = self.tokenizer.get_token()
-        if current_token == "method":
-            self._consume(current_token)
+        sub_kind = self.tokenizer.get_token()
+        if sub_kind == "method":
+            self._consume(sub_kind)
             self.symbol_table.define("this", self.class_name, "arg")
-        elif current_token in ("constructor", "function"):
-            self._consume(current_token)
+        elif sub_kind in ("constructor", "function"):
+            self._consume(sub_kind)
         else: 
-            raise JackSyntaxError(f"Expected 'constructor', 'function', or 'method' but got '{current_token}'")
+            raise JackSyntaxError(f"Expected 'constructor', 'function', or 'method' but got '{sub_kind}'")
         # Handle 'void'|type
         if self.tokenizer.get_token() == "void": 
             self._consume("void")
         else: 
             self.comp_type()
         # Handle subroutineName '('
-        self._consume_identifier()
+        sub_name = self._consume_identifier()
         self._consume("(")
         # Handle parameterList
         self.comp_parameter_list()
         # Handle ')' subroutineBody
         self._consume(")")
-        self.comp_subroutine_body()
+        self.comp_subroutine_body(sub_name, sub_kind)
         
     def comp_parameter_list(self):
         # Handle (type varName (',' type varName)*)?
@@ -87,11 +87,22 @@ class CompEngine:
                 name = self._consume_identifier()
                 self.symbol_table.define(name, type_, "arg")
         
-    def comp_subroutine_body(self):
+    def comp_subroutine_body(self, sub_name, sub_kind):
         # Handle '{' varDec*
         self._consume("{")
         while self.tokenizer.get_token() == "var":
             self.comp_var_dec()
+        n_vars = self.symbol_table.var_count("var")
+        # Generate subroutine declaration VM code    
+        self.code_writer.write_function(f"{self.class_name}.{sub_name}", n_vars)
+        if sub_kind == "method":
+            self.code_writer.write_push("argument", 0)
+            self.code_writer.write_pop("pointer", 0)
+        elif sub_kind == "constructor":
+            n_fields = self.symbol_table.var_count("field")
+            self.code_writer.write_push("constant", n_fields)
+            self.code_writer.write_call("Memory.alloc", 1)
+            self.code_writer.write_pop("pointer", 0)
         # Handle statements '}'
         self.comp_statements()
         self._consume("}")
@@ -171,6 +182,9 @@ class CompEngine:
         self._consume("return")
         if self.tokenizer.get_token() != ";":
             self.comp_expression()
+        else:
+            self.code_writer.write_push("constant", 0)
+        self.code_writer.write_return()
         self._consume(";")
         
     def comp_expression(self):
