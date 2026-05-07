@@ -25,6 +25,7 @@ class CompEngine:
         while self.tokenizer.get_token() in ("static", "field"):
             self.comp_class_var_dec()
         # Handle subroutineDec*
+        self.label_count = -1
         while self.tokenizer.get_token() in ("constructor", "function", "method"): 
             self.comp_subroutine()
         # Handle '}'
@@ -133,46 +134,78 @@ class CompEngine:
     def comp_let(self):
         # Handle 'let' varName
         self._consume("let")
-        self._consume_identifier()
+        name = self._consume_identifier()
         # Handle ('[' expression ']')?
         if self.tokenizer.get_token() == "[":
+            self._push_variable(name)
             self._consume("[")
             self.comp_expression()
             self._consume("]")
-        # Handle '=' expression ';'
-        self._consume("=")
-        self.comp_expression()
+            # Array access by *(arr+expression1) = expression2
+            self.code_writer.write_arithmetic("add")
+            self._consume("=")
+            self.comp_expression()
+            self.code_writer.write_pop("temp", 0)
+            self.code_writer.write_pop("pointer", 1)
+            self.code_writer.write_push("temp", 0)
+            self.code_writer.write_pop("that", 0)
+        # Handle '=' expression
+        else:
+            self._consume("=")
+            self.comp_expression()
+            # Store result in corresponding memory segment
+            kind = self.symbol_table.kind_of(name)
+            self.code_writer.write_pop(SEGMENT_MAPPING[kind], self.symbol_table.index_of(name))
+        # Handle ';'
         self._consume(";")
         
     def comp_if(self):
+        # Keep nested labels globally distinct
+        self.label_count += 2
+        local_count = self.label_count
         # Handle 'if' '('
         self._consume("if")
         self._consume("(")
         # Handle expression ')'
         self.comp_expression()
         self._consume(")")
+        # Realize if-else branching with labels
+        self.code_writer.write_arithmetic("not")
+        self.code_writer.write_if(f"L{local_count}")
         # Handle '{' statements '}'
         self._consume("{")
         self.comp_statements()
         self._consume("}")
+        self.code_writer.write_goto(f"L{local_count+1}")
         # Handle ('else' '{' statements '}')?
+        self.code_writer.write_label(f"L{local_count}")
         if self.tokenizer.get_token() == "else":
             self._consume("else")
             self._consume("{")
             self.comp_statements()
             self._consume("}")
+        self.code_writer.write_label(f"L{local_count+1}")
         
     def comp_while(self):
+        # Keep nested labels globally distinct
+        self.label_count += 2
+        local_count = self.label_count
         # Handle 'while' '('
         self._consume("while")
         self._consume("(")
+        # Realizes while loops with labels
+        self.code_writer.write_label(f"L{local_count}")
         # Handle expression ')'
         self.comp_expression()
         self._consume(")")
+        self.code_writer.write_arithmetic("not")
+        self.code_writer.write_if(f"L{local_count+1}")
         # Handle '{' statements '}'
         self._consume("{")
         self.comp_statements()
         self._consume("}")
+        self.code_writer.write_goto(f"L{local_count}")
+        self.code_writer.write_label(f"L{local_count+1}")
         
     def comp_do(self):
         # Handle 'do' subroutineCall ';'
@@ -210,6 +243,7 @@ class CompEngine:
                 self.code_writer.write_arithmetic(OP_MAPPING[op])
         
     def comp_term(self):
+        # Pushes term's value on the stack
         token = self.tokenizer.get_token()
         ttype = self.tokenizer.token_type()
         # Handle integerConstant
@@ -260,7 +294,7 @@ class CompEngine:
                 self._consume("[")
                 self.comp_expression()
                 self._consume("]")
-                # Array access by *(name+expression)
+                # Array access by *(arr+expression)
                 self.code_writer.write_arithmetic("add")
                 self.code_writer.write_pop("pointer", 1)
                 self.code_writer.write_push("that", 0)
@@ -322,7 +356,7 @@ class CompEngine:
             return self._consume_identifier()
             
     def _push_variable(self, name):
-        # Push variable on the corresponding stack memory segment
+        # Push variable from memory segment on the stack
         kind = self.symbol_table.kind_of(name)
         if kind is None:
             raise JackSyntaxError(f"Undefined variable '{name}'")
