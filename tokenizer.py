@@ -19,17 +19,19 @@ class Tokenizer:
                 if chars[i].isspace():
                     i += 1
                     continue
-                 # Handle comments (// \n)    
+                 # Handle line comments (// \n)    
                 elif chars[i] == "/":
-                    if chars[i+1] == "/":
-                        while chars[i] != "\n":
+                    if i+1 < len(chars) and chars[i+1] == "/":
+                        while i < len(chars) and chars[i] != "\n":
                             i += 1
                         continue
-                    # Handle comments (/* */, /** */)
-                    elif chars[i+1] == "*":
+                    # Handle block comments (/* */, /** */)
+                    elif i+1 < len(chars) and chars[i+1] == "*":
                         i += 2
-                        while not (chars[i] == "*" and chars[i+1] == "/"):
+                        while i+1 < len(chars) and not (chars[i] == "*" and chars[i+1] == "/"):
                             i += 1
+                        if i+1 >= len(chars):
+                            raise JackSyntaxError("Unterminated block comment")
                         i += 2
                         continue
                     else:
@@ -40,9 +42,11 @@ class Tokenizer:
                 elif chars[i] == "\"":
                     token = chars[i]
                     i += 1
-                    while chars[i] != "\"":
+                    while i < len(chars) and chars[i] != "\"":
                         token += chars[i]
                         i += 1
+                    if i >= len(chars):
+                        raise JackSyntaxError("Unterminated string literal")
                     self.tokens.append(token + "\"")
                     i += 1
                     continue
@@ -50,7 +54,7 @@ class Tokenizer:
                 elif chars[i].isdecimal():
                     token = chars[i]
                     i += 1
-                    while chars[i].isdecimal():
+                    while i < len(chars) and chars[i].isdecimal():
                         token += chars[i]
                         i += 1
                     self.tokens.append(token)
@@ -59,7 +63,7 @@ class Tokenizer:
                 elif chars[i].isalpha() or chars[i] == "_":
                     token = chars[i]
                     i += 1
-                    while chars[i].isalnum() or chars[i] == "_":
+                    while i < len(chars) and (chars[i].isalnum() or chars[i] == "_"):
                         token += chars[i]
                         i += 1
                     self.tokens.append(token)

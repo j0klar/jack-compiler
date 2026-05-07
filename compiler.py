@@ -11,12 +11,12 @@ def main():
     path_in = sys.argv[1]
     try:
         # Compile single .jack-file
-        if os.path.isfile(path_in) and path_in[-5:] == ".jack":
+        if os.path.isfile(path_in) and path_in.endswith(".jack"):
             _compile_file(path_in)
         # Compile directory of .jack-files
         elif os.path.isdir(path_in):
             for file_in in os.listdir(path_in):
-                if file_in[-5:] == ".jack":
+                if file_in.endswith(".jack"):
                     _compile_file(os.path.join(path_in, file_in))
         else:
             print(f"Error: '{path_in}' is not a .jack file or directory", file=sys.stderr)

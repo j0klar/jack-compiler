@@ -13,6 +13,7 @@ class CompEngine:
         self.tokenizer = tokenizer
         self.symbol_table = symbol_table
         self.code_writer = code_writer
+        self.label_count = 0
         
     def comp_class(self):
         self.tokenizer.advance()
@@ -25,7 +26,6 @@ class CompEngine:
         while self.tokenizer.get_token() in ("static", "field"):
             self.comp_class_var_dec()
         # Handle subroutineDec*
-        self.label_count = -1
         while self.tokenizer.get_token() in ("constructor", "function", "method"): 
             self.comp_subroutine()
         # Handle '}'
@@ -55,14 +55,12 @@ class CompEngine:
         self.symbol_table.reset()
         # Handle 'constructor'|'function'|'method'
         sub_kind = self.tokenizer.get_token()
-        if sub_kind in ("constructor", "function"):
-            self._consume(sub_kind)
-        elif sub_kind == "method":
-            self._consume(sub_kind)
-            # Add current object to subroutine-level symbol table
-            self.symbol_table.define("this", self.class_name, "arg")
-        else: 
+        if sub_kind not in ("constructor", "function", "method"):
             raise JackSyntaxError(f"Expected 'constructor', 'function', or 'method' but got '{sub_kind}'")
+        self._consume(sub_kind)
+        # Add current object to subroutine-level symbol table
+        if sub_kind == "method":
+            self.symbol_table.define("this", self.class_name, "arg")
         # Handle 'void'|type
         if self.tokenizer.get_token() == "void": 
             self._consume("void")
@@ -161,7 +159,7 @@ class CompEngine:
         
     def comp_if(self):
         # Keep nested labels globally distinct
-        self.label_count += 2
+        self.label_count += 1
         local_count = self.label_count
         # Handle 'if' '('
         self._consume("if")
@@ -171,41 +169,41 @@ class CompEngine:
         self._consume(")")
         # Realize if-else branching with labels
         self.code_writer.write_arithmetic("not")
-        self.code_writer.write_if(f"L{local_count}")
+        self.code_writer.write_if(f"IF_FALSE{local_count}")
         # Handle '{' statements '}'
         self._consume("{")
         self.comp_statements()
         self._consume("}")
-        self.code_writer.write_goto(f"L{local_count+1}")
+        self.code_writer.write_goto(f"IF_END{local_count}")
         # Handle ('else' '{' statements '}')?
-        self.code_writer.write_label(f"L{local_count}")
+        self.code_writer.write_label(f"IF_FALSE{local_count}")
         if self.tokenizer.get_token() == "else":
             self._consume("else")
             self._consume("{")
             self.comp_statements()
             self._consume("}")
-        self.code_writer.write_label(f"L{local_count+1}")
+        self.code_writer.write_label(f"IF_END{local_count}")
         
     def comp_while(self):
         # Keep nested labels globally distinct
-        self.label_count += 2
+        self.label_count += 1
         local_count = self.label_count
         # Handle 'while' '('
         self._consume("while")
         self._consume("(")
         # Realizes while loops with labels
-        self.code_writer.write_label(f"L{local_count}")
+        self.code_writer.write_label(f"WHILE_TRUE{local_count}")
         # Handle expression ')'
         self.comp_expression()
         self._consume(")")
         self.code_writer.write_arithmetic("not")
-        self.code_writer.write_if(f"L{local_count+1}")
+        self.code_writer.write_if(f"WHILE_END{local_count}")
         # Handle '{' statements '}'
         self._consume("{")
         self.comp_statements()
         self._consume("}")
-        self.code_writer.write_goto(f"L{local_count}")
-        self.code_writer.write_label(f"L{local_count+1}")
+        self.code_writer.write_goto(f"WHILE_TRUE{local_count}")
+        self.code_writer.write_label(f"WHILE_END{local_count}")
         
     def comp_do(self):
         # Handle 'do' subroutineCall ';'
