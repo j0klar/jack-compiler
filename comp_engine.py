@@ -153,6 +153,8 @@ class CompEngine:
             self.comp_expression()
             # Store result in corresponding memory segment
             kind = self.symbol_table.kind_of(name)
+            if kind is None:
+                raise JackSyntaxError(f"Undefined variable '{name}'")
             self.code_writer.write_pop(SEGMENT_MAPPING[kind], self.symbol_table.index_of(name))
         # Handle ';'
         self._consume(";")
