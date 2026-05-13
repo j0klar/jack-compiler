@@ -1,8 +1,19 @@
 # jack-compiler
 
-A two-stage compiler for the Jack programming language written in Python, built as part of the [Nand2Tetris](https://www.nand2tetris.org/) course (Projects 10 & 11).
+A compiler for the Jack programming language written in Python, built as part of the [Nand2Tetris](https://www.nand2tetris.org/) course (Projects 10 & 11).
 
 Compiles `.jack` files written in the Jack programming language into `.vm` files for the Hack virtual machine. Supports both single-file and multi-file (directory) compilation.
+
+This compiler is part of a complete computing system built from scratch:
+
+| Project | Description |
+|---|---|
+| [hack-computer](https://github.com/j0klar/hack-computer) | ALU, CPU, and memory chips in HDL |
+| [hack-assembler](https://github.com/j0klar/hack-assembler) | Two-pass assembler with symbol resolution |
+| [vm-translator](https://github.com/j0klar/vm-translator) | Stack-based VM translator (compiler backend) |
+| [jack-compiler](https://github.com/j0klar/jack-compiler) | ← you are here |
+| [jack-os](https://github.com/j0klar/jack-os) | Jack OS standard/runtime library |
+
 
 ## Usage
 
@@ -13,12 +24,14 @@ python compiler.py <directory>        # directory of .jack files
 
 The output `.vm` file will be created in the same directory as the input.
 
+
 ## Examples
 
 ```bash
 python compiler.py Square             # produces Main.vm, Square.vm, SquareGame.vm
 python compiler.py Main.jack          # produces Main.vm
 ```
+
 
 ## Supported Language Features
 
@@ -38,11 +51,13 @@ python compiler.py Main.jack          # produces Main.vm
 
 **Scoping:** class-level (`static`, `field`) and subroutine-level (`var`, `arg`) scope shadowing
 
+
 ## The Jack Grammar
 
 ![Jack Grammar](jack-grammar.png)
 
 *Source: Nisan & Schocken, The Elements of Computing Systems, 2nd ed. MIT Press (2021), Figure 10.5.*
+
 
 ## Project Structure
 
@@ -54,5 +69,6 @@ jack-compiler/
 ├── symbol_table.py   # Manages symbol tables
 ├── code_writer.py    # Writes VM commands to output file
 ├── errors.py         # JackSyntaxError exception
+├── jack-grammar.png  # Jack grammar specification
 └── examples/
 ```
