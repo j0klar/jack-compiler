@@ -14,6 +14,8 @@ This compiler is part of a complete computing system built from scratch:
 | [jack-compiler](https://github.com/j0klar/jack-compiler) | ← you are here |
 | [jack-os](https://github.com/j0klar/jack-os) | Jack OS standard/runtime library |
 
+To experience all layers of the hardware & software architecture, start by compiling all [OS files](https://github.com/j0klar/jack-os) together with any number of `.jack` files in the same directory using the [Jack compiler](https://github.com/j0klar/jack-compiler). Then, translate the resulting `.vm` directory via the [VM translator](https://github.com/j0klar/vm-translator) and assemble the resulting `.asm` file using the [Hack assembler](https://github.com/j0klar/hack-assembler). Finally, run the resulting `.hack` binary file either directly on a hardware realization of the [Hack computer](https://github.com/j0klar/hack-computer), or online on the Nand2Tetris [CPU Emulator](https://nand2tetris.github.io/web-ide/cpu). In case of performance issues, it is recommended to use the desktop version of the CPU Emulator instead, which can be downloaded [here](https://www.nand2tetris.org/software).
+
 
 ## Usage
 
@@ -28,9 +30,11 @@ The output `.vm` file will be created in the same directory as the input.
 ## Examples
 
 ```bash
-python compiler.py Square             # produces Main.vm, Square.vm, SquareGame.vm
 python compiler.py Main.jack          # produces Main.vm
+python compiler.py Pong/              # produces Main.vm, Ball.vm, PongGame.vm, ...
 ```
+
+The `Pong/` folder contains `.jack` files for a simple pong game and the [Jack OS](https://github.com/j0klar/jack-os), serving as an example to demonstrate the compilation pipeline described above.
 
 
 ## Supported Language Features
@@ -70,5 +74,5 @@ jack-compiler/
 ├── code_writer.py    # Writes VM commands to output file
 ├── errors.py         # JackSyntaxError exception
 ├── jack-grammar.png  # Jack grammar specification
-└── examples/
+└── Pong/
 ```

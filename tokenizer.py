@@ -95,7 +95,10 @@ class Tokenizer:
         return self.token
         
     def int_val(self):
-        return int(self.token)
+        integer = int(self.token)
+        if integer < 0 or integer > 32767:
+            raise JackSyntaxError(f"Integer constant {integer} out of range [0, 32767]")
+        return integer
         
     def str_val(self):
         return self.token[1:-1]
